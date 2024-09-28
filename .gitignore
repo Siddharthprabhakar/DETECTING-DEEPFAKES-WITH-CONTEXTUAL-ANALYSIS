@@ -1,0 +1,29 @@
+# Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+env/
+
+# Environment variables
+.env
+
+# Logs and temp files
+*.log
+*.tmp
+
+# Database files
+*.sqlite3
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# IDE/project-specific files
+.vscode/
+.idea/
+
+# Large model files managed by Git LFS
+Backend/model/df_model.pt
