@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response, stream_with_context
 from werkzeug.utils import secure_filename
 from flask_cors import CORS
 import os
@@ -8,15 +8,25 @@ from torchvision import models, transforms
 import face_recognition
 import numpy as np
 import cv2
+import tensorflow as tf
+from tensorflow.keras.layers import LSTM, Dense
+import time
 
 UPLOAD_FOLDER = 'Uploaded_Files'
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-CORS(app, resources={r"/Detect": {"origins": "http://localhost:3000"}})
+# Enable CORS for both /Detect and /progress endpoints
+CORS(app, resources={r"/Detect": {"origins": "http://localhost:3000"}, r"/progress/*": {"origins": "http://localhost:3000"}})
 
+# Load the model without compiling it
+emotion_model = tf.keras.models.load_model('model/sentiment analysis/multimodal.h5', custom_objects={'LSTM': LSTM, 'Dense': Dense}, compile=False)
 
-# Define the model architecture
+# Recompile the model with updated optimizer arguments
+optimizer = tf.keras.optimizers.Adadelta(learning_rate=1.0)
+emotion_model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+
+# Define the deepfake detection model architecture
 class Model(nn.Module):
     def __init__(self, num_classes, latent_dim=2048, lstm_layers=1, hidden_dim=2048, bidirectional=False):
         super(Model, self).__init__()
@@ -37,8 +47,6 @@ class Model(nn.Module):
         x_lstm, _ = self.lstm(x, None)
         return fmap, self.dp(self.linear1(x_lstm[:, -1, :]))
 
-
-# Helper functions and dataset classes
 def predict(model, img):
     fmap, logits = model(img)
     sm = nn.Softmax(dim=1)
@@ -46,7 +54,6 @@ def predict(model, img):
     _, prediction = torch.max(logits, 1)
     confidence = logits[:, int(prediction.item())].item() * 100
     return [int(prediction.item()), confidence]
-
 
 class validation_dataset(torch.utils.data.Dataset):
     def __init__(self, video_names, sequence_length=60, transform=None):
@@ -82,7 +89,6 @@ class validation_dataset(torch.utils.data.Dataset):
             if success:
                 yield image
 
-
 def detectFakeVideo(videoPath):
     im_size = 112
     mean = [0.485, 0.456, 0.406]
@@ -97,13 +103,34 @@ def detectFakeVideo(videoPath):
 
     video_dataset = validation_dataset([videoPath], sequence_length=20, transform=transform)
     model = Model(2)
-    model.load_state_dict(torch.load('model/df_model.pt', map_location=torch.device('cpu')))
+    model.load_state_dict(torch.load('model/video/df_model.pt', map_location=torch.device('cpu')))
     model.eval()
 
     for i in range(len([videoPath])):
         prediction = predict(model, video_dataset[i])
         return prediction
 
+def detectEmotionOnFrame(frame):
+    resized_frame = cv2.resize(frame, (48, 48))
+    gray_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2GRAY)
+    gray_frame = np.expand_dims(gray_frame, axis=-1)
+    gray_frame = np.expand_dims(gray_frame, axis=0)
+    gray_frame = gray_frame / 255.0
+    emotion_prediction = emotion_model.predict(gray_frame)
+    return np.argmax(emotion_prediction), np.max(emotion_prediction)
+
+def stream_progress(video_path):
+    total_steps = 100  # Simulating the process taking 100 steps
+    for i in range(total_steps):
+        time.sleep(0.1)
+        progress = i + 1
+        estimated_time_left = (total_steps - progress) * 0.1
+        yield f"data: {progress},{estimated_time_left}\n\n"
+
+@app.route('/progress/<filename>', methods=['GET'])
+def progress(filename):
+    video_path = f"Uploaded_Files/{filename}"
+    return Response(stream_with_context(stream_progress(video_path)), mimetype='text/event-stream')
 
 @app.route('/Detect', methods=['POST'])
 def DetectPage():
@@ -127,9 +154,23 @@ def DetectPage():
             output = "REAL"
 
         confidence = prediction[1]
+
+        # Extract frames from video and detect emotions
+        emotions_detected = []
+        vidObj = cv2.VideoCapture(video_path)
+        success, frame = vidObj.read()
+        while success:
+            faces = face_recognition.face_locations(frame)
+            for (top, right, bottom, left) in faces:
+                face_frame = frame[top:bottom, left:right]
+                emotion, confidence = detectEmotionOnFrame(face_frame)
+                emotions_detected.append({"emotion": int(emotion), "confidence": confidence})
+            success, frame = vidObj.read()
+
         response = {
-            'result': output,  # Changed 'output' to 'result' to match frontend
-            'confidence': confidence
+            'result': output,
+            'confidence': confidence,
+            'emotions': emotions_detected
         }
 
         return jsonify(response), 200
@@ -137,7 +178,6 @@ def DetectPage():
     except Exception as e:
         print(f"Error during detection: {str(e)}")
         return jsonify({'error': 'Error during detection'}), 500
-
 
 if __name__ == '__main__':
     app.run(port=5000)
