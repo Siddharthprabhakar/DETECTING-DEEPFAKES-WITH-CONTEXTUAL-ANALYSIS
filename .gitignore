@@ -26,4 +26,5 @@ env/
 .idea/
 
 # Large model files managed by Git LFS
-Backend/model/df_model.pt
+.pt
+.h5
