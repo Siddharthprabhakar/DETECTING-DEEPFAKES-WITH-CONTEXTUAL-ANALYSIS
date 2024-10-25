@@ -1,0 +1,34 @@
+@startuml
+skinparam defaultTextAlignment center
+
+' Define styles for collections
+skinparam collections {
+    BorderColor black
+    BorderThickness 2
+    BackgroundColor white
+    ArrowColor Black
+}
+
+' External Entity
+collections Users as "USERS"
+
+' Processes
+rectangle "File Upload & Identification" as FileUploadIdentification
+rectangle "Deepfake Detection Check" as DeepfakeDetectionCheck
+rectangle "Audio Extraction" as AudioExtraction
+rectangle "Sentiment Analysis Model" as SentimentAnalysisModel
+
+' Data Store
+database "Temporary Storage" as TempStorage
+
+' Data Flows
+Users -down-> FileUploadIdentification : "Upload Content"
+FileUploadIdentification -down-> DeepfakeDetectionCheck : "Identify File & Check for Deepfake"
+
+DeepfakeDetectionCheck -down-> TempStorage : "Detection Status (Real/Fake)"
+DeepfakeDetectionCheck -down-> AudioExtraction : "If Fake, Extract Audio"
+AudioExtraction -down-> SentimentAnalysisModel : "Audio Data"
+SentimentAnalysisModel -down-> TempStorage : "Sentiment Results"
+SentimentAnalysisModel -right-> TempStorage : "Sentiment Results"
+
+@enduml

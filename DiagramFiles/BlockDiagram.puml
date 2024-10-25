@@ -1,0 +1,34 @@
+@startuml
+skinparam defaultTextAlignment center
+
+' Define components with custom styling
+skinparam component {
+    BorderColor black
+    BackgroundColor lightgray
+    FontSize 12
+}
+
+' Components
+component "User Interface (UI)" as UI
+component "File Upload & Identification" as UploadIdentification
+component "Deepfake Detection" as DeepfakeDetection
+component "Audio Extraction" as AudioExtraction
+component "Sentiment Analysis" as SentimentAnalysis
+database "Temporary Storage" as TempStorage
+component "Results Display" as ResultsDisplay
+
+' Interactions and Data Flow
+UI --> UploadIdentification : "Upload Content"
+UploadIdentification --> DeepfakeDetection : "Identify File & Check for Deepfake"
+DeepfakeDetection --> TempStorage : "Detection Results"
+
+' If content is fake, extract audio and run sentiment analysis
+DeepfakeDetection -left-> AudioExtraction : "If Fake, Extract Audio"
+AudioExtraction --> SentimentAnalysis : "Extracted Audio"
+SentimentAnalysis --> TempStorage : "Sentiment Results"
+
+' Display results back to UI
+TempStorage --> ResultsDisplay : "Detection & Sentiment Results"
+ResultsDisplay --> UI : "Display Results to User"
+
+@enduml

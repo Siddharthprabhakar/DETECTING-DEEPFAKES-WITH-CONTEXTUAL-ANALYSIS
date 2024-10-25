@@ -1,0 +1,28 @@
+@startuml
+skinparam defaultTextAlignment center
+
+' Define styles for collections
+skinparam collections {
+    BorderColor black
+    BorderThickness 2
+    BackgroundColor white
+    ArrowColor Black
+}
+
+' External Entity
+collections UI as "UI"
+
+' Processes
+rectangle "Sentiment Analysis Model" as SentimentAnalysisModel
+rectangle "Display Results" as DisplayResults
+
+' Data Store
+database "Temporary Storage" as TempStorage
+
+' Data Flows
+TempStorage -down-> SentimentAnalysisModel : "Audio Data (If Fake)"
+SentimentAnalysisModel -down-> TempStorage : "Sentiment Results"
+SentimentAnalysisModel -right-> DisplayResults : "Sentiment Analysis Results"
+DisplayResults -right-> UI : "Display Confirmation & Results"
+
+@enduml

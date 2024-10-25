@@ -1,0 +1,23 @@
+@startuml
+skinparam defaultTextAlignment center
+
+' Define styles for collections
+skinparam collections {
+    BorderColor black
+    BorderThickness 2
+    BackgroundColor white
+    ArrowColor Black
+}
+
+' External Entities
+collections Users as "USERS"
+collections UI as "UI"
+
+' Main Process
+rectangle "Multimedia Content Processing System" as MainSystem
+
+' Data Flows
+Users -down-> MainSystem : "Upload Content"
+MainSystem -right-> UI : "Detection & Sentiment Results"
+
+@enduml

@@ -60,7 +60,7 @@ export default function Analysis() {
   return (
     <div className="app-container">
       <div className="content">
-        <h1 className="app-title">Fake Video Detector</h1>
+        <h1 className="app-title">DeepFake Detector</h1>
         <p className="app-description">Upload a video and check if it is fake using our advanced AI detection system.</p>
         
         <input 

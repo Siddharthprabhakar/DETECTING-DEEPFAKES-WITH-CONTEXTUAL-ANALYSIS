@@ -1,0 +1,22 @@
+@startuml
+skinparam defaultTextAlignment center
+
+start
+
+:User Uploads Content;
+:Identify File Type;
+if (Is Content Audio/Video/Image?) then (Yes)
+    :Run Deepfake Detection;
+    if (Is Content Fake?) then (Yes)
+        :Extract Audio;
+        :Run Sentiment Analysis;
+    endif
+    :Store Detection & Sentiment Results;
+else (No)
+    :Display Upload Error;
+endif
+
+:Display Results to User;
+stop
+
+@enduml

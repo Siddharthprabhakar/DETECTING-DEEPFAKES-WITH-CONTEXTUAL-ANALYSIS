@@ -1,0 +1,34 @@
+@startuml D:\NeuralNet\Level1.png
+skinparam defaultTextAlignment center
+
+' Define styles for collections
+skinparam collections {
+    BorderColor black
+    BorderThickness 2
+    BackgroundColor white
+    ArrowColor Black
+}
+
+' External Entities
+collections Users as "USERS"
+collections UI as "UI"
+
+' Processes
+rectangle "File Upload & Identification" as FileUploadIdentification
+rectangle "Deepfake Detection Check" as DeepfakeDetectionCheck
+rectangle "Sentiment Analysis" as SentimentAnalysis
+rectangle "Display Results" as DisplayResults
+
+' Data Store
+database "Temporary Storage" as TempStorage
+
+' Data Flows
+Users -down-> FileUploadIdentification : "Upload Content"
+FileUploadIdentification -down-> DeepfakeDetectionCheck : "Identify File & Check for Deepfake"
+DeepfakeDetectionCheck -down-> TempStorage : "Detection Status (Real/Fake)"
+DeepfakeDetectionCheck -down-> SentimentAnalysis : "If Fake, Extract Audio for Sentiment Analysis"
+SentimentAnalysis -right-> TempStorage : "Sentiment Results"
+SentimentAnalysis -right-> UI : "Sentiment Analysis Results"
+DisplayResults -up-> UI : "Upload Confirmation & Results"
+
+@enduml
