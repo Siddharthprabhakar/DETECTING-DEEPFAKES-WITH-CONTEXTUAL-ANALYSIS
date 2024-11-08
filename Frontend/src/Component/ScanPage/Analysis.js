@@ -7,6 +7,7 @@ export default function Analysis({ onFileAnalyzed }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [result, setResult] = useState(null);
   const [confidence, setConfidence] = useState('');
+  const [emotionResult, setEmotionResult] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -40,21 +41,27 @@ export default function Analysis({ onFileAnalyzed }) {
       const response = await axios.post('http://localhost:5000/Detect', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setResult(response.data.result);
-      setConfidence(response.data.confidence);
+
+      console.log("Response from backend:", response.data);
+      setResult(response.data.deepfake_result.result);
+      setConfidence(response.data.deepfake_result.confidence);
+      setEmotionResult(response.data.emotion_result);
+      console.log('Emotion Result:', response.data.emotion_result);
 
       // Pass the analyzed file data to the parent component
       onFileAnalyzed({
         file: selectedFile,
         name: selectedFile.name,
         type: selectedFile.type,
-        result: response.data.result,
-        confidence: response.data.confidence,
+        result: response.data.deepfake_result.result,
+        confidence: response.data.deepfake_result.confidence,
+        emotion_result: response.data.emotion_result,
       });
     } catch (error) {
       console.error('Error during detection:', error);
       setResult('Error during detection');
       setConfidence('N/A');
+      setEmotionResult('Audio unavailable');
     } finally {
       setLoading(false);
     }
@@ -64,6 +71,7 @@ export default function Analysis({ onFileAnalyzed }) {
     setSelectedFile(null);
     setResult(null);
     setConfidence('');
+    setEmotionResult(null);
   };
 
   return (
@@ -135,6 +143,15 @@ export default function Analysis({ onFileAnalyzed }) {
               <p className="text-base-content mt-1">
                 Confidence: <strong>{confidence}%</strong>
               </p>
+              {emotionResult && (
+                <div className="mt-4">
+                  <p>
+                    Emotion: <strong>{emotionResult.emotion}</strong><br />
+                    Score: <strong>{emotionResult.score}</strong><br />
+                    Transcribed Text: <strong>{emotionResult.transcribed_text}</strong>
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -30,28 +30,29 @@ export default function Projects() {
       <div className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* History List */}
         <div className="col-span-1">
-          {history.length > 0 ? (
-            <div>
-              <h3 className="text-2xl font-bold mb-4">Analysis History</h3>
-              <ul className="space-y-2">
-                {history.map((file, index) => (
-                  <li key={index} className="p-2 bg-base-200 rounded-lg shadow-sm flex flex-col">
-                    <span className="font-semibold">{file.name}</span>
-                    <span>Result: <strong>{file.result}</strong></span>
-                    <span>Confidence: <strong>{file.confidence}%</strong></span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <div>
-              <img
-                className="w-full ring-2 ring-base-300 max-w-none rounded-xl shadow-xl"
-                src={myImage}
-                alt="Detection"
-              />
-            </div>
-          )}
+        {history.length > 0 ? (
+          <div>
+            <h3 className="text-2xl font-bold mb-4">Analysis History</h3>
+            <ul className="space-y-2">
+              {history.map((file, index) => (
+                <li key={index} className="p-2 bg-base-200 rounded-lg shadow-sm flex flex-col">
+                  <span className="font-semibold">{file.name}</span>
+                  <span>Result: <strong>{file.result}</strong></span>
+                  <span>Confidence: <strong>{file.confidence}%</strong></span>
+                  <span>Emotion Analysis: <strong>{file.emotion_result ? `${file.emotion_result.emotion} (Score: ${file.emotion_result.score})` : 'N/A'}</strong></span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <div>
+            <img
+              className="w-full ring-2 ring-base-300 max-w-none rounded-xl shadow-xl"
+              src={myImage}
+              alt="Detection"
+            />
+          </div>
+        )}
         </div>
 
         {/* Analysis Component - Displayed Horizontally Next to History List */}

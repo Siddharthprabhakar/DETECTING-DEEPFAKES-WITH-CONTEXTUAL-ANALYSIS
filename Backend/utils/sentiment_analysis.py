@@ -1,58 +1,56 @@
-# emotion_analysis.py
+import moviepy.editor as mp  # For extracting audio from video
+import whisper  # For transcribing audio to text using Whisper
 from transformers import pipeline
-import speech_recognition as sr
-from moviepy.editor import AudioFileClip
 import os
 
-# Initialize the emotion detection pipeline
-emotion_analyzer = pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base")
+# Load DistilBERT-based sentiment analysis model
+sentiment_analyzer = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english", framework="pt")
 
-# Extract audio from video
-def extract_audio_from_video(video_path, output_audio_path):
-    try:
-        audio_clip = AudioFileClip(video_path)
-        audio_clip.write_audiofile(output_audio_path, codec='pcm_s16le')
-        audio_clip.close()
-    except Exception as e:
-        print(f"Error extracting audio from video {video_path}: {e}")
+# Initialize the Whisper model for transcription
+whisper_model = whisper.load_model("base")  # You can choose other models like "small", "medium", etc.
 
-# Transcribe audio to text
-def transcribe_audio(audio_path):
-    recognizer = sr.Recognizer()
-    with sr.AudioFile(audio_path) as source:
-        audio_data = recognizer.record(source)
-        try:
-            text = recognizer.recognize_google(audio_data)
-            return text
-        except (sr.UnknownValueError, sr.RequestError):
-            return None
+# Function to extract audio from video
+def extract_audio(video_path):
+    video = mp.VideoFileClip(video_path)
+    if video.audio is None:  # Check if video has audio
+        return None
+    audio_path = "extracted_audio.wav"
+    video.audio.write_audiofile(audio_path)
+    return audio_path
 
-# Perform emotion detection
-def perform_emotion_detection(text):
-    result = emotion_analyzer(text)
-    emotion = result[0]['label']
-    score = result[0]['score']
-    return emotion, score
+# Function to transcribe audio to text using Whisper
+def transcribe_audio_with_whisper(audio_path):
+    result = whisper_model.transcribe(audio_path)
+    return result["text"]
 
-# Main function for emotion analysis
-def analyze_emotion(video_path):
-    temp_audio_path = "temp_audio.wav"
-    
-    # Try extracting audio from the video
-    try:
-        extract_audio_from_video(video_path, temp_audio_path)
-        
-        # Try transcribing audio to text
-        text = transcribe_audio(temp_audio_path)
-        os.remove(temp_audio_path)  # Clean up temporary audio file
+# Function to perform sentiment analysis
+def analyze_sentiment(text):
+    sentiment_results = sentiment_analyzer(text)
+    sentiment_label = sentiment_results[0]['label']
+    sentiment_score = sentiment_results[0]['score']
 
-        if text:
-            emotion, score = perform_emotion_detection(text)
-            return emotion, score, text
-        else:
-            # Return None if transcription failed (likely no audio)
-            return None, None, None
+    sentiment_mapping = {
+        "LABEL_0": "very negative",
+        "LABEL_1": "negative",
+        "LABEL_2": "neutral",
+        "LABEL_3": "positive",
+        "LABEL_4": "very positive"
+    }
 
-    except Exception as e:
-        print(f"Error during emotion analysis: {str(e)}")
-        return None, None, None  # Return None to indicate audio unavailability
+    sentiment = sentiment_mapping.get(sentiment_label, "neutral")
+    return sentiment, sentiment_score
+
+# Main function to process video, extract audio, and analyze sentiment
+def analyze_video_sentiment(video_path):
+    audio_path = extract_audio(video_path)  # Extract audio from video
+
+    if audio_path is None:
+        return None, None, None  # Return None when audio is not available
+
+    transcribed_text = transcribe_audio_with_whisper(audio_path)  # Transcribe audio to text using Whisper
+
+    if transcribed_text:
+        sentiment, sentiment_score = analyze_sentiment(transcribed_text)  # Perform sentiment analysis on transcribed text
+        return sentiment, sentiment_score, transcribed_text
+    else:
+        return None, None, None  # In case transcription fails
