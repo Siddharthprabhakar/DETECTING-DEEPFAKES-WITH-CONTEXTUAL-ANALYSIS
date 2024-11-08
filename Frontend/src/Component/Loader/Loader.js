@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 
-export default function Loader({ filename }) {
+export default function Loader({ filename, isComplete }) {
   const [progress, setProgress] = useState(0);
   const [estimatedTime, setEstimatedTime] = useState(0);
 
@@ -10,31 +10,29 @@ export default function Loader({ filename }) {
       return; // Early return if filename is not provided
     }
 
-    fetch(`http://localhost:5000/progress/${filename}`)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        return response.text();
-      })
-      .then(data => {
-        console.log(data);
-      })
-      .catch(error => {
-        console.error('Error fetching progress:', error);
-      });
-      
+    // Open a connection to listen to the server-sent events
     const eventSource = new EventSource(`http://localhost:5000/progress/${filename}`);
+    
     eventSource.onmessage = (event) => {
-      const [progress, estimatedTime] = event.data.split(",");
-      setProgress(progress);
-      setEstimatedTime(estimatedTime);
+      const [rawProgress, rawEstimatedTime] = event.data.split(",");
+      const progressValue = parseFloat(rawProgress);
+      const estimatedTimeValue = parseFloat(rawEstimatedTime);
+
+      // Cap the progress at 90% if detection is not yet complete
+      if (!isComplete) {
+        setProgress(Math.min(progressValue, 90));
+      } else {
+        // When detection is complete, set progress to 100%
+        setProgress(100);
+      }
+
+      setEstimatedTime(estimatedTimeValue);
     };
 
     return () => {
       eventSource.close();
     };
-  }, [filename]);
+  }, [filename, isComplete]);
 
   return (
     <div className="loader-container">

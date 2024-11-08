@@ -20,10 +20,10 @@ export default function Contact() {
         {/* Replace the form with your company information */}
         <div className="mt-16 max-w-xl mx-auto" data-aos="zoom-in">
           <p className="text-lg leading-7">
-          We are Samit Fernandes, Ralph Pereira, and Jaden Franco, studying Computer Engineering at St. Francis Institute of Technology, Mumbai University. This is our 3rd Year 2nd Term Project, aimed at developing innovative solutions to real-world challenges in the field of computer engineering.
+          We are Siddharth Prabhakar, Chahak Sengar, and Sumedh Dongre, final-year B.Tech students at Symbiosis Institute of Technology. This project marks a significant milestone in our academic journey as we strive to address complex challenges within our field.
           </p>
           <p className="mt-4 text-lg leading-7">
-            In the age of rampant deepfake technology, our mission is to protect truth and integrity in digital media. Our DeepFake Detection App empowers users to identify and combat the spread of deceptive content. By leveraging advanced algorithms, we aim to ensure transparency, accountability, and trustworthiness in online discourse.
+          In an age where deepfake technology poses ethical concerns, our mission is to safeguard authenticity in digital media. Our Deepfake Detection App is designed to empower users with the tools to identify and reduce the spread of misleading content. By leveraging advanced algorithms, we are committed to fostering a safer and more trustworthy online environment.
           </p>
         </div>
       </div>

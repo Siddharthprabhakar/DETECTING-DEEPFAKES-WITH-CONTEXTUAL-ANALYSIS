@@ -1,116 +1,141 @@
 import React, { useState } from 'react';
+import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
-import './analysis.css'; // Assuming you have the necessary styles
-import Loader from '../Loader/Loader'; // Import your loader
+import Loader from '../Loader/Loader';
 
-export default function Analysis() {
+export default function Analysis({ onFileAnalyzed }) {
   const [selectedFile, setSelectedFile] = useState(null);
-  const [result, setResult] = useState('');
+  const [result, setResult] = useState(null);
   const [confidence, setConfidence] = useState('');
-  const [emotions, setEmotions] = useState([]); // State for emotions array
-  const [loading, setLoading] = useState(false); // State to track loading status
-  const videoFilename = "your_video_file.mp4"; 
+  const [loading, setLoading] = useState(false);
 
-  const emojiMap = {
-    0: "😊",  // Happy
-    1: "😢",  // Sad
-    2: "😡",  // Angry
-    3: "😐",  // Neutral
-    4: "😲"   // Surprised
-  };
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: (acceptedFiles, rejectedFiles) => {
+      if (rejectedFiles.length > 0) {
+        rejectedFiles.forEach((file) => {
+          console.warn(`Rejected: ${file.name} with extension ${file.name.split('.').pop()}`);
+        });
+      }
 
-  const handleFileChange = (event) => {
-    setSelectedFile(event.target.files[0]);
-  };
+      if (acceptedFiles.length > 0) {
+        const fileData = acceptedFiles[0];
+        setSelectedFile(fileData);
+      }
+    },
+    accept: 'video/*,image/*',
+    maxFiles: 1,
+  });
 
   const handleSubmit = async () => {
     if (!selectedFile) {
-      alert("Please upload a video file");
+      alert('Please upload a video or image file');
       return;
     }
 
-    setLoading(true); // Start showing loader
+    setLoading(true);
     const formData = new FormData();
     formData.append('video', selectedFile);
 
     try {
-      // Make sure the request goes to the Flask server
       const response = await axios.post('http://localhost:5000/Detect', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
+      setResult(response.data.result);
+      setConfidence(response.data.confidence);
 
-      // Handle the response: Accessing 'result', 'confidence', and 'emotions'
-      console.log('Success:', response.data);
-      setResult(response.data.result); 
-      setConfidence(response.data.confidence); 
-      setEmotions(response.data.emotions); 
-
+      // Pass the analyzed file data to the parent component
+      onFileAnalyzed({
+        file: selectedFile,
+        name: selectedFile.name,
+        type: selectedFile.type,
+        result: response.data.result,
+        confidence: response.data.confidence,
+      });
     } catch (error) {
-      console.error("Error while uploading file:", error);
-      setResult("Error during detection");
-      setConfidence("N/A");
-      setEmotions([]); 
+      console.error('Error during detection:', error);
+      setResult('Error during detection');
+      setConfidence('N/A');
     } finally {
-      setLoading(false); // Stop showing loader
+      setLoading(false);
     }
   };
 
+  const handleReset = () => {
+    setSelectedFile(null);
+    setResult(null);
+    setConfidence('');
+  };
+
   return (
-    <div className="app-container">
-      <div className="content">
-        <h1 className="app-title">DeepFake Detector</h1>
-        <p className="app-description">Upload a video and check if it is fake using our advanced AI detection system.</p>
-        
-        <input 
-          type="file" 
-          accept="video/*" 
-          id="videoUpload" 
-          onChange={handleFileChange}
-          style={{ display: 'none' }} 
-        />
-        <label htmlFor="videoUpload" className="upload-btn">
-          + Add Video
-        </label>
+    <div className="flex justify-center mt-8">
+      <div className="max-w-md w-full bg-base-200 shadow-lg rounded-lg overflow-hidden">
+        <div className="px-6 py-6">
+          <h1 className="text-2xl font-bold text-base-content">DeepFake Detector</h1>
+          <p className="text-base-content mt-2">
+            Upload a video or image to check if it's fake using our AI detection system.
+          </p>
 
-        {selectedFile && <p className="file-name">File: {selectedFile.name}</p>}
+          {/* Drag-and-Drop Area */}
+          {!selectedFile && (
+            <div
+              {...getRootProps()}
+              className={`mt-4 flex flex-col items-center justify-center p-6 border-2 border-dashed rounded cursor-pointer ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-100'}`}
+            >
+              <input {...getInputProps()} />
+              {isDragActive ? (
+                <p className="text-blue-500">Drop the file here...</p>
+              ) : (
+                <p className="text-gray-600">Drag & drop a file here, or click to select a file</p>
+              )}
+            </div>
+          )}
 
-        <button onClick={handleSubmit} className="detect-btn" disabled={loading}>
-          {loading ? "Detecting..." : "Detect"}
-        </button>
+          {/* Preview Section */}
+          {selectedFile && (
+            <div className="mt-4">
+              <p className="text-base-content mb-2">Preview:</p>
+              {selectedFile.type.startsWith('image') ? (
+                <img
+                  src={URL.createObjectURL(selectedFile)}
+                  alt="Preview"
+                  className="w-full h-64 object-cover rounded"
+                />
+              ) : (
+                <video
+                  src={URL.createObjectURL(selectedFile)}
+                  controls
+                  className="w-full h-64 rounded"
+                />
+              )}
+              {/* Toggle Button */}
+              <button
+                onClick={result === null ? handleSubmit : handleReset}
+                className={`mt-4 w-full py-2 px-4 ${result === null ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-600'} text-white font-semibold rounded ${loading ? 'cursor-not-allowed' : ''}`}
+                disabled={loading}
+              >
+                {loading ? 'Detecting...' : result === null ? 'Analyze Media' : 'Upload Another File'}
+              </button>
+            </div>
+          )}
 
-        {/* Show loader while the request is being processed */}
-        {loading && (
-          <div className="loader-container">
-             <Loader filename={videoFilename} />
-          </div>
-        )}
+          {/* Loader */}
+          {loading && (
+            <div className="mt-4">
+              <Loader filename={selectedFile.name} isComplete={result !== null} />
+            </div>
+          )}
 
-        {/* Show the result when detection is complete */}
-        <div className="result-area">
-          <h3 className="result-title">Detection Result</h3>
-          {result ? (
-            <>
-              <p className="result-text">Result: <strong>{result}</strong></p>
-              <p className="confidence-text">Confidence: <strong>{confidence}%</strong></p>
-              
-              {/* Display the emotions as emojis */}
-              <div className="emotion-display">
-                <h3>Detected Emotions:</h3>
-                {emotions.length > 0 ? (
-                  emotions.map((emotion, index) => (
-                    <span key={index} className="emotion-emoji">
-                      {emojiMap[emotion.emotion]} ({emotion.confidence.toFixed(2)}%)
-                    </span>
-                  ))
-                ) : (
-                  <p>No emotions detected.</p>
-                )}
-              </div>
-            </>
-          ) : (
-            <p className="no-result">Upload a video to see the result.</p>
+          {/* Results Section */}
+          {result !== null && (
+            <div className="mt-6">
+              <h3 className="text-xl font-semibold text-base-content">Detection Result</h3>
+              <p className="text-base-content mt-2">
+                Result: <strong>{result}</strong>
+              </p>
+              <p className="text-base-content mt-1">
+                Confidence: <strong>{confidence}%</strong>
+              </p>
+            </div>
           )}
         </div>
       </div>
