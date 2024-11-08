@@ -4,9 +4,11 @@ from flask_cors import CORS
 import os
 import time
 from utils.deepfake_video import detect_fake_video
+from utils.deepfake_image import detect_fake_image  # Image deepfake detection function
 from utils.Sentiment_analysis.audio_extraction import extract_audio
 from utils.Sentiment_analysis.transcription import transcribe_audio_with_whisper
 from utils.Sentiment_analysis.sentiment_analysis import analyze_sentiment
+from mimetypes import guess_type
 
 UPLOAD_FOLDER = 'Uploaded_Files'
 AUDIO_FOLDER = 'Audio_Files'
@@ -31,87 +33,97 @@ def stream_progress(video_path):
 
 @app.route('/progress/<filename>', methods=['GET'])
 def progress(filename):
-    video_path = f"Uploaded_Files/{filename}"
+    video_path = f"{UPLOAD_FOLDER}/{filename}"
     return Response(stream_with_context(stream_progress(video_path)), mimetype='text/event-stream')
 
-# Helper function for sentiment analysis
+# Helper function for sentiment analysis on video
 def analyze_video_sentiment(video_path):
     try:
         print(f"[Video Sentiment Analysis] Starting sentiment analysis for video: {video_path}")
-
-        # Extract audio
         audio_path = extract_audio(video_path)
         if not audio_path:
-            print("[Video Sentiment Analysis] No audio extracted; skipping sentiment analysis.")
             return "N/A", "N/A", "No audio available"
-
-        # Transcribe audio to text
         transcribed_text = transcribe_audio_with_whisper(audio_path)
         if not transcribed_text:
-            print("[Video Sentiment Analysis] Transcription failed; skipping sentiment analysis.")
             return "N/A", "N/A", "Transcription error"
-
-        # Analyze sentiment
         sentiment, sentiment_score = analyze_sentiment(transcribed_text)
-        print(f"[Video Sentiment Analysis] Completed with sentiment: {sentiment}, score: {sentiment_score}")
         return sentiment, sentiment_score, transcribed_text
-
     except Exception as e:
-        print(f"[Video Sentiment Analysis] Error during sentiment analysis: {str(e)}")
         return "N/A", "N/A", "Sentiment analysis error"
 
 @app.route('/Detect', methods=['POST'])
 def DetectPage():
-    if 'video' not in request.files:
-        return jsonify({'error': 'No video file uploaded'}), 400
+    if 'media' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
 
-    video = request.files['video']
-    video_filename = secure_filename(video.filename)
-    video_path = os.path.join(app.config['UPLOAD_FOLDER'], video_filename)
-    video.save(video_path)
+    media = request.files['media']
+    media_filename = secure_filename(media.filename)
+    media_path = os.path.join(app.config['UPLOAD_FOLDER'], media_filename)
+    media.save(media_path)
 
-    if not os.path.exists(video_path):
+    # Confirm file existence
+    if not os.path.exists(media_path):
         return jsonify({'error': 'File upload failed'}), 500
+
+    # Determine file type
+    mime_type, _ = guess_type(media_path)
+    response = {}
+    
+    if mime_type and mime_type.startswith('video'):
+        # Video processing
+        try:
+            prediction = detect_fake_video(media_path)
+            is_fake = prediction[0] == 0
+            output = "FAKE" if is_fake else "REAL"
+            confidence = prediction[1]
+
+            # Perform sentiment analysis for videos
+            sentiment, sentiment_score, transcribed_text = analyze_video_sentiment(media_path)
+            emotion_analysis_result = {
+                'emotion': sentiment,
+                'score': sentiment_score,
+                'transcribed_text': transcribed_text
+            }
+            response = {
+                'media_type': 'video',
+                'deepfake_result': {
+                    'result': output,
+                    'confidence': confidence
+                },
+                'emotion_result': emotion_analysis_result
+            }
+        except Exception as e:
+            return jsonify({'error': 'Error during video detection'}), 500
+    elif mime_type and mime_type.startswith('image'):
+        # Image processing
+        try:
+            label, confidence = detect_fake_image(media_path)
+            response = {
+                'media_type': 'image',
+                'deepfake_result': {
+                    'result': label,
+                    'confidence': confidence
+                }
+            }
+        except Exception as e:
+            return jsonify({'error': 'Error during image detection'}), 500
     else:
-        print(f"[DetectPage] File uploaded successfully: {video_path}")
+        return jsonify({'error': 'Unsupported media type'}), 400
 
-    try:
-        prediction = detect_fake_video(video_path)
-        is_fake = prediction[0] == 0
-        output = "FAKE" if is_fake else "REAL"
-        confidence = prediction[1]
+    # Cleanup
+    if os.path.exists(media_path):
+        try:
+            os.remove(media_path)
+        except PermissionError:
+            time.sleep(1)
+            os.remove(media_path)
 
-        # Perform sentiment analysis regardless of deepfake status
-        sentiment, sentiment_score, transcribed_text = analyze_video_sentiment(video_path)
-        emotion_analysis_result = {
-            'emotion': sentiment,
-            'score': sentiment_score,
-            'transcribed_text': transcribed_text
-        }
-
-        # Cleanup
-        if os.path.exists(video_path):
-            try:
-                os.remove(video_path)
-            except PermissionError as e:
-                print(f"[DetectPage] Could not delete video file immediately: {e}")
-                time.sleep(1)
-                os.remove(video_path)
-
-        response = {
-            'deepfake_result': {
-                'result': output,
-                'confidence': confidence
-            },
-            'emotion_result': emotion_analysis_result
-        }
-
-        print("Response to frontend:", response)
-        return jsonify(response), 200
-
-    except Exception as e:
-        print(f"[DetectPage] Error during detection: {str(e)}")
-        return jsonify({'error': 'Error during detection'}), 500
+    return jsonify(response), 200
 
 if __name__ == '__main__':
-    app.run(port=5000)
+    try:
+        print("Starting the server...")
+        app.run(debug=True)
+    except Exception as e:
+        print(f"Error starting the server: {e}")
+
