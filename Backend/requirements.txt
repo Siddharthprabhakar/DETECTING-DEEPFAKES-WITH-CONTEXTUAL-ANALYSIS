@@ -1,0 +1,13 @@
+Flask
+flask-cors
+Werkzeug
+transformers
+torch
+Pillow
+numpy
+scipy
+moviepy
+whisper
+torchvision
+opencv-python-headless
+face_recognition
