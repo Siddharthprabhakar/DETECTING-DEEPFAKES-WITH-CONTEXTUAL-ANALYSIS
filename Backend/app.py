@@ -4,7 +4,7 @@ from flask_cors import CORS
 import os
 import time
 from utils.deepfake_video import detect_fake_video
-from utils.deepfake_image import detect_fake_image  # Image deepfake detection function
+from utils.deepfake_image import detect_fake_image  # Assuming image detection function is in this file
 from utils.Sentiment_analysis.audio_extraction import extract_audio
 from utils.Sentiment_analysis.transcription import transcribe_audio_with_whisper
 from utils.Sentiment_analysis.sentiment_analysis import analyze_sentiment
@@ -33,10 +33,10 @@ def stream_progress(video_path):
 
 @app.route('/progress/<filename>', methods=['GET'])
 def progress(filename):
-    video_path = f"{UPLOAD_FOLDER}/{filename}"
+    video_path = f"Uploaded_Files/{filename}"
     return Response(stream_with_context(stream_progress(video_path)), mimetype='text/event-stream')
 
-# Helper function for sentiment analysis on video
+# Helper function for sentiment analysis
 def analyze_video_sentiment(video_path):
     try:
         print(f"[Video Sentiment Analysis] Starting sentiment analysis for video: {video_path}")
@@ -61,14 +61,11 @@ def DetectPage():
     media_path = os.path.join(app.config['UPLOAD_FOLDER'], media_filename)
     media.save(media_path)
 
-    # Confirm file existence
     if not os.path.exists(media_path):
         return jsonify({'error': 'File upload failed'}), 500
 
     # Determine file type
     mime_type, _ = guess_type(media_path)
-    response = {}
-    
     if mime_type and mime_type.startswith('video'):
         # Video processing
         try:
@@ -97,11 +94,14 @@ def DetectPage():
     elif mime_type and mime_type.startswith('image'):
         # Image processing
         try:
-            label, confidence = detect_fake_image(media_path)
+            prediction = detect_fake_image(media_path)
+            is_fake = prediction[0] == 0
+            output = "FAKE" if is_fake else "REAL"
+            confidence = prediction[1]
             response = {
                 'media_type': 'image',
                 'deepfake_result': {
-                    'result': label,
+                    'result': output,
                     'confidence': confidence
                 }
             }
@@ -114,16 +114,11 @@ def DetectPage():
     if os.path.exists(media_path):
         try:
             os.remove(media_path)
-        except PermissionError:
+        except PermissionError as e:
             time.sleep(1)
             os.remove(media_path)
 
     return jsonify(response), 200
 
 if __name__ == '__main__':
-    try:
-        print("Starting the server...")
-        app.run(debug=True)
-    except Exception as e:
-        print(f"Error starting the server: {e}")
-
+    app.run(port=5000)
