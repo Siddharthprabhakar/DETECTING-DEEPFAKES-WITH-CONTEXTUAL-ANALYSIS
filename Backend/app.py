@@ -20,7 +20,9 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(AUDIO_FOLDER, exist_ok=True)
 
 # Enable CORS
-CORS(app, resources={r"/Detect": {"origins": "http://localhost:3000"}, r"/progress/*": {"origins": "http://localhost:3000"}})
+# Enable CORS
+CORS(app, resources={r"/Detect": {"origins": "https://gilded-smakager-8700a8.netlify.app"},
+                     r"/progress/*": {"origins": "https://gilded-smakager-8700a8.netlify.app"}})
 
 # Streaming progress function
 def stream_progress(video_path):
